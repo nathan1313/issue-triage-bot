@@ -1,0 +1,76 @@
+name: "Issue triage bot"
+description: "Classifies incoming issues using TypeSafe AI's Jev decision model. Applies labels and posts a confirmation comment."
+author: "Nathan Roth <nathan1313@gmail.com>"
+
+inputs:
+  typesafe_api_key:
+    description: "TypeSafe AI API key (Bearer token)"
+    required: true
+  github_token:
+    description: "GitHub token for posting labels + comments"
+    required: false
+    default: ${{ github.token }}
+  model:
+    description: "Jev model to use"
+    required: false
+    default: "jev-latest"
+  min_confidence:
+    description: "Minimum Jev confidence (0-1) required to apply labels. Below this, the bot comments 'needs human review' instead."
+    required: false
+    default: "0.6"
+  max_body_chars:
+    description: "Truncate issue body to this many characters before sending to Jev (controls input-token cost)."
+    required: false
+    default: "2000"
+  comment_template:
+    description: "Comment body. Use {placeholders} for category, automatable, urgency, confidence."
+    required: false
+    default: |
+      **issue-triage-bot** classified this as:
+      - **category**: `{category}` (confidence: {confidence})
+      - **automatable**: {automatable}
+      - **urgency**: {urgency_label}
+
+outputs:
+  category:
+    description: "The category Jev assigned"
+    value: ${{ steps.triage.outputs.category }}
+  automatable:
+    description: "Whether Jev decided this is automatable"
+    value: ${{ steps.triage.outputs.automatable }}
+  urgency:
+    description: "The urgency score (0-2) Jev assigned"
+    value: ${{ steps.triage.outputs.urgency }}
+  confidence:
+    description: "Jev's confidence in the category decision"
+    value: ${{ steps.triage.outputs.confidence }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install triage-bot
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+
+    - name: Run triage
+      id: triage
+      shell: bash
+      env:
+        TYPESAFE_API_KEY: ${{ inputs.typesafe_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_MIN_CONFIDENCE: ${{ inputs.min_confidence }}
+        INPUT_MAX_BODY_CHARS: ${{ inputs.max_body_chars }}
+        INPUT_COMMENT_TEMPLATE: ${{ inputs.comment_template }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_ISSUE_NUMBER: ${{ github.event.issue.number }}
+      run: python -m triage_bot
