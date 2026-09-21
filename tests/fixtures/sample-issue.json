@@ -1,9 +1,0 @@
-{
-  "issue": {
-    "number": 1,
-    "title": "Login button doesn't work",
-    "body": "Clicking the login button on the homepage does nothing. Repro: open /, click the top-right button. Expected: redirect to /login.",
-    "labels": [{"name": "bug"}],
-    "state": "open"
-  }
-}
