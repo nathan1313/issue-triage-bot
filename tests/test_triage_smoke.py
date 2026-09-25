@@ -8,12 +8,13 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 # Make .github/triage.py importable without installing anything.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO_ROOT, ".github"))
 
-from triage import handle_issue  # noqa: E402
+from triage import handle_issue, classify  # noqa: E402
 
 _FIXTURE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -34,12 +35,73 @@ class HandleIssueSmokeTest(unittest.TestCase):
         self.assertEqual(result["reason"], "no_api_key")
 
     def test_handle_issue_with_api_key(self):
-        # Downstream tickets (#1, label-apply, comment-post) have not
-        # landed yet, so a key present still short-circuits to pending
-        # rather than raising NotImplementedError from the stubs.
-        result = handle_issue(self.payload, "fake-key")
-        self.assertEqual(result["status"], "pending")
-        self.assertEqual(result["reason"], "downstream_not_implemented")
+        # After issue #1, with a key present the bot runs classify
+        # and returns completed on success.
+        pass  # Replaced by test_handle_issue_with_api_key_runs_classify
+
+
+class ClassifySmokeTest(unittest.TestCase):
+    """Tests for the classify() function (issue #1)."""
+
+    def setUp(self):
+        with open(_FIXTURE_PATH, encoding="utf-8") as fh:
+            self.payload = json.load(fh)
+
+    def test_classify_with_mocked_jev(self):
+        """Patches requests.post to return a canned Jev response,
+        asserts the typed result."""
+        canned_response = {
+            "answers": {
+                "category": {"value": "bug"},
+                "automatable": {"value": False},
+                "urgency": {"value": 2},
+            }
+        }
+
+        with patch("triage.requests.post") as mock_post:
+            mock_post.return_value.json.return_value = canned_response
+            mock_post.return_value.raise_for_status = lambda: None
+
+            result = classify(self.payload, "fake-api-key")
+
+        self.assertEqual(result.category, "bug")
+        self.assertEqual(result.automatable, False)
+        self.assertEqual(result.urgency, 2)
+        mock_post.assert_called_once()
+
+    def test_classify_transport_error_falls_back(self):
+        """Patches requests.post to raise, asserts handle_issue
+        returns skipped with reason=jev_unavailable."""
+        with patch("triage.requests.post") as mock_post:
+            mock_post.side_effect = Exception("Connection refused")
+
+            result = handle_issue(self.payload, "fake-api-key")
+
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["reason"], "jev_unavailable")
+
+    def test_handle_issue_with_api_key_runs_classify(self):
+        """Patches Jev to a happy-path canned response, asserts the bot
+        returns {"status": "completed", ...} with the expected fields."""
+        canned_response = {
+            "answers": {
+                "category": {"value": "feature"},
+                "automatable": {"value": True},
+                "urgency": {"value": 1},
+            }
+        }
+
+        with patch("triage.requests.post") as mock_post:
+            mock_post.return_value.json.return_value = canned_response
+            mock_post.return_value.raise_for_status = lambda: None
+
+            result = handle_issue(self.payload, "fake-api-key")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["category"], "feature")
+        self.assertEqual(result["automatable"], True)
+        self.assertEqual(result["urgency"], 1)
+        self.assertIsNone(result["reason"])
 
 
 if __name__ == "__main__":
