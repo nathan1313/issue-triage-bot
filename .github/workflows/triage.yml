@@ -1,0 +1,31 @@
+name: triage
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Smoke test the triage entry point
+        working-directory: .github
+        run: |
+          python -c "from triage import handle_issue; print(handle_issue({'action': 'opened'}, None))"

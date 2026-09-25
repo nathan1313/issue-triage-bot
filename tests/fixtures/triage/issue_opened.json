@@ -1,0 +1,14 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 1,
+    "title": "Synthetic fixture for triage smoke test",
+    "body": "This payload is used by tests/test_triage_smoke.py to exercise handle_issue without a live GitHub event."
+  },
+  "repository": {
+    "full_name": "nathan1313/issue-triage-bot"
+  },
+  "sender": {
+    "login": "triage-bot-fixture"
+  }
+}
