@@ -1,0 +1,18 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 42,
+    "title": "Smoke test fixture issue",
+    "body": "Synthetic body used by the triage smoke test.",
+    "state": "open",
+    "user": {
+      "login": "octocat"
+    }
+  },
+  "repository": {
+    "full_name": "nathan1313/issue-triage-bot"
+  },
+  "sender": {
+    "login": "octocat"
+  }
+}
