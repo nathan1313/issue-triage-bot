@@ -1,7 +1,7 @@
-"""Smoke tests for the triage bootstrap (ticket #2).
+"""Smoke tests for the triage bot bootstrap (issue #2).
 
-Uses stdlib ``unittest`` to keep the workflow hermetic — no pytest
-dependency until a later ticket introduces it.
+Uses stdlib unittest only so the workflow stays hermetic (no pytest
+dependency at bootstrap time).
 """
 
 import json
@@ -9,41 +9,37 @@ import os
 import sys
 import unittest
 
-# Make the bootstrap module importable. ``.github/triage.py`` lives outside
-# the ``tests/`` tree, so we extend ``sys.path`` explicitly.
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, ".github"))
+# Make .github/triage.py importable without installing anything.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_REPO_ROOT, ".github"))
 
-import triage  # noqa: E402
+from triage import handle_issue  # noqa: E402
 
-
-FIXTURE_PATH = os.path.join(
-    ROOT, "tests", "fixtures", "triage", "issue_opened.json"
+_FIXTURE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "fixtures",
+    "triage",
+    "issue_opened.json",
 )
 
 
-class HandleIssueSmokeTests(unittest.TestCase):
-    def setUp(self) -> None:
-        with open(FIXTURE_PATH, "r", encoding="utf-8") as fh:
+class HandleIssueSmokeTest(unittest.TestCase):
+    def setUp(self):
+        with open(_FIXTURE_PATH, encoding="utf-8") as fh:
             self.payload = json.load(fh)
 
-    def test_handle_issue_without_api_key(self) -> None:
-        result = triage.handle_issue(self.payload, None)
-        self.assertEqual(
-            result,
-            {"status": "skipped", "reason": "no_api_key"},
-        )
+    def test_handle_issue_without_api_key(self):
+        result = handle_issue(self.payload, None)
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["reason"], "no_api_key")
 
-    def test_handle_issue_with_api_key_short_circuits(self) -> None:
-        # ``classify`` / ``format_response`` are still stubs, so the
-        # handler must short-circuit to ``pending`` rather than
-        # propagating ``NotImplementedError``. This keeps the workflow
-        # smoke step green before tickets #1 and #4 ship.
-        result = triage.handle_issue(self.payload, "fake-key-for-smoke")
-        self.assertEqual(
-            result,
-            {"status": "pending", "reason": "downstream_not_implemented"},
-        )
+    def test_handle_issue_with_api_key(self):
+        # Downstream tickets (#1, label-apply, comment-post) have not
+        # landed yet, so a key present still short-circuits to pending
+        # rather than raising NotImplementedError from the stubs.
+        result = handle_issue(self.payload, "fake-key")
+        self.assertEqual(result["status"], "pending")
+        self.assertEqual(result["reason"], "downstream_not_implemented")
 
 
 if __name__ == "__main__":

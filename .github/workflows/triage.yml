@@ -2,9 +2,7 @@ name: triage
 
 on:
   issues:
-    types:
-      - opened
-      - edited
+    types: [opened, edited]
 
 permissions:
   contents: read
@@ -17,15 +15,12 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
-      - name: Smoke test the triage entry point
-        working-directory: .github
+      - name: Smoke test triage entry point
         run: |
-          python -c "from triage import handle_issue; print(handle_issue({'action': 'opened'}, None))"
+          python -c "import sys; sys.path.insert(0, '.github'); from triage import handle_issue; print(handle_issue({}, None))"
