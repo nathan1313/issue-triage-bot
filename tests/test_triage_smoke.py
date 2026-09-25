@@ -10,6 +10,8 @@ import sys
 import unittest
 from unittest.mock import patch
 
+import requests  # noqa: E402
+
 # Make .github/triage.py importable without installing anything.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_REPO_ROOT, ".github"))
@@ -36,8 +38,8 @@ class HandleIssueSmokeTest(unittest.TestCase):
 
     def test_handle_issue_with_api_key(self):
         # After issue #1, with a key present the bot runs classify
-        # and returns completed on success.
-        pass  # Replaced by test_handle_issue_with_api_key_runs_classify
+        # and returns completed on success. See
+        # test_handle_issue_with_api_key_runs_classify below.
 
 
 class ClassifySmokeTest(unittest.TestCase):
@@ -70,10 +72,10 @@ class ClassifySmokeTest(unittest.TestCase):
         mock_post.assert_called_once()
 
     def test_classify_transport_error_falls_back(self):
-        """Patches requests.post to raise, asserts handle_issue
-        returns skipped with reason=jev_unavailable."""
+        """Patches requests.post to raise a RequestException, asserts
+        handle_issue returns skipped with reason=jev_unavailable."""
         with patch("triage.requests.post") as mock_post:
-            mock_post.side_effect = Exception("Connection refused")
+            mock_post.side_effect = requests.RequestException("Connection refused")
 
             result = handle_issue(self.payload, "fake-api-key")
 
